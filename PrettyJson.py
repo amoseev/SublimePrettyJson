@@ -37,6 +37,7 @@ class PrettyJsonCommand(sublime_plugin.TextCommand):
     """ Pretty Print JSON """
     def run(self, edit):
         self.view.erase_regions('json_errors')
+
         for region in self.view.sel():
 
             selected_entire_file = False
@@ -44,24 +45,40 @@ class PrettyJsonCommand(sublime_plugin.TextCommand):
             # If no selection, use the entire file as the selection
             if region.empty() and s.get("use_entire_file_if_no_selection", True):
                 selection = sublime.Region(0, self.view.size())
+                messages=self.view.substr(selection).splitlines()
                 selected_entire_file = True
             else:
                 selection = region
 
             try:
-                obj = json.loads(self.view.substr(selection),
-                                 object_pairs_hook=OrderedDict,
-                                 parse_float=decimal.Decimal)
+                if(selected_entire_file):
+                    
+                    self.view.replace(edit, selection, '')
 
-                self.view.replace(edit, selection, json.dumps(obj,
+                    for message in reversed(messages):
+                        obj = json.loads(message,
+                                     object_pairs_hook=OrderedDict,
+                                     parse_float=decimal.Decimal)
+                        new_string = json.dumps(obj,
+                                     indent=s.get("indent", 2),
+                                      ensure_ascii=s.get("ensure_ascii", False),
+                                      sort_keys=s.get("sort_keys", False),
+                                      separators=(',', ': '),
+                                      use_decimal=True).replace('\\r','\r').replace('\\n','\n').replace('\\t','\t')
+                        self.view.insert(edit,  0 , new_string  )
+                    self.change_syntax()
+
+                else :
+                    obj = json.loads(self.view.substr(selection),
+                                     object_pairs_hook=OrderedDict,
+                                     parse_float=decimal.Decimal)
+                    self.view.replace(edit, selection, json.dumps(obj,
                                   indent=s.get("indent", 2),
                                   ensure_ascii=s.get("ensure_ascii", False),
                                   sort_keys=s.get("sort_keys", False),
                                   separators=(',', ': '),
-                                  use_decimal=True))
+                                  use_decimal=True).replace('\\r','\r').replace('\\n','\n').replace('\\t','\t'))
 
-                if selected_entire_file:
-                    self.change_syntax()
 
             except Exception:
                 exc = sys.exc_info()[1]
@@ -126,6 +143,7 @@ class JqPrettyJson(sublime_plugin.WindowCommand):
     Allows work with ./jq
     """
     def run(self):
+        print "sdf"
         if jq_exits:
             self.window.show_input_panel("Enter ./jq filter expression", ".", on_done=self.done, on_change=None, on_cancel=None)
         else:
